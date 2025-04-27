@@ -12,8 +12,7 @@ public class PlayerStats : MonoBehaviour {
     public float Finesse { get; private set; }
 
     void Awake() {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance == null) Instance = this; else Destroy(gameObject);
         circle = GetComponent<CircleCollider2D>();
     }
 

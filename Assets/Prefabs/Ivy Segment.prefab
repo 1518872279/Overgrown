@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 3606409082778213333}
   - component: {fileID: 129471726542446643}
   - component: {fileID: 4256331895552381322}
-  - component: {fileID: 8661268111105283020}
   - component: {fileID: 4461188724815224988}
   m_Layer: 0
   m_Name: Ivy Segment
@@ -132,20 +131,6 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
---- !u!114 &8661268111105283020
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4681634106179904249}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 041f236d8391f794bbbeac6006c7eae0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  swaySpeed: 2
-  swayAngle: 10
 --- !u!114 &4461188724815224988
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -158,4 +143,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 37f2888ea85c6304bbc2d65de5f394a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  xpOnDestroy: 1
+  xpOnDestroy: 0.001
