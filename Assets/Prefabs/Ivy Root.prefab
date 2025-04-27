@@ -44,11 +44,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54ac9e8144afbbf40bba5933869742e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  segmentPrefab: {fileID: 4681634106179904249, guid: 2ac33d2088120e943bfd28c72de13adf, type: 3}
-  growthInterval: 0.3
+  branchPrefab: {fileID: 4681634106179904249, guid: 2ac33d2088120e943bfd28c72de13adf, type: 3}
+  leafPrefab: {fileID: 3935325812229915542, guid: 719cb8a233ada764ab4d213f1589d7ac, type: 3}
+  growthInterval: 1
   segmentLength: 1
-  branchChance: 0.25
-  maxDepth: 10
+  branchChance: 0.1
+  branchDecay: 0.1
+  maxBranchSpawns: 1
+  leafSpawnChance: 0.1
+  maxLeavesPerBranch: 1
+  maxDepth: 5
   healthCurve:
     serializedVersion: 2
     m_Curve:

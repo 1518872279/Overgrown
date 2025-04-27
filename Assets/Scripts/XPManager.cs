@@ -2,30 +2,27 @@ using UnityEngine;
 
 public class XPManager : MonoBehaviour {
     public static XPManager Instance;
-    public float xp = 0f;
+    public float xp;
     public int level = 1;
-    public int upgradePoints = 0;
-    [Tooltip("Curve: level → XP needed for next level")]
-    public AnimationCurve xpCurve; // define xpToNextLevel: time vs xp needed
+    public int upgradePoints;
+    public AnimationCurve xpCurve;
 
     void Awake() {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance == null) Instance = this; else Destroy(gameObject);
     }
 
-    public void AddXP(float amount) {
-        xp += amount;
+    public void AddXP(float amt) {
+        xp += amt;
         CheckLevelUp();
     }
 
     void CheckLevelUp() {
-        float needed = xpCurve.Evaluate(level);
-        while (xp >= needed) {
-            xp -= needed;
+        float need = xpCurve.Evaluate(level);
+        while (xp >= need) {
+            xp -= need;
             level++;
             upgradePoints++;
-            // TODO: trigger level-up UI
-            needed = xpCurve.Evaluate(level);
+            need = xpCurve.Evaluate(level);
         }
     }
 } 

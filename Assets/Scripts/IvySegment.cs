@@ -16,9 +16,9 @@ public class IvySegment : MonoBehaviour {
     /// <summary>
     /// Initialize health when spawning
     /// </summary>
-    public void InitHealth(float health) {
-        maxHealth = health;
-        currentHealth = maxHealth;
+    public void InitHealth(float h) {
+        maxHealth = h;
+        currentHealth = h;
     }
 
     public void TakeDamage(float amount) {
