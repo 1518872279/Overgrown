@@ -25,45 +25,74 @@ public class IvyNode : MonoBehaviour {
     [Header("Generation & Health")]
     public int maxDepth = 8;
     public AnimationCurve healthCurve;
+    [Tooltip("Maximum active segments to allow")]
+    public int maxActiveSegments = 200;
 
     [HideInInspector] public int depth = 0;
     private Coroutine growthCoroutine;
+    private static int activeSegmentCount = 0;
 
     void Start() {
         growthCoroutine = StartCoroutine(GrowRoutine());
     }
 
     IEnumerator GrowRoutine() {
-        while (true) {
+        while(depth < maxDepth) {
+            // Stop if at center
+            if (GrowthManager.Instance != null && 
+                Vector2.Distance(transform.position, GrowthManager.Instance.centerPoint) <= GrowthManager.Instance.centerRadius)
+                yield break;
+                
+            SpawnBranch(Vector3.up);
             // Use GrowthController if available, otherwise use base interval
             float interval = GrowthController.Instance != null ? 
                 GrowthController.Instance.GetInterval(growthInterval) : 
                 growthInterval;
-                
             yield return new WaitForSeconds(interval);
-            
-            if (depth < maxDepth) {
-                SpawnBranch(Vector3.up);
-            }
         }
     }
 
     void SpawnBranch(Vector3 localDir) {
+        // Check if we've hit the maximum number of active segments
+        if (activeSegmentCount >= maxActiveSegments) return;
+
         // Calculate direction
         Vector3 direction = transform.rotation * localDir;
         Vector3 pos = transform.position + direction * segmentLength;
         Quaternion rot = Quaternion.LookRotation(Vector3.forward, direction);
 
-        // Instantiate branch
-        GameObject branch = Instantiate(branchPrefab, pos, rot, transform.parent);
-        var node = branch.AddComponent<IvyNode>();
-        node.CopySettings(this);
+        // Get branch from pool if available
+        GameObject branch;
+        if (PoolManager.Instance != null) {
+            branch = PoolManager.Instance.GetBranch();
+            branch.transform.position = pos;
+            branch.transform.rotation = rot;
+            branch.transform.parent = transform.parent;
+        } else {
+            branch = Instantiate(branchPrefab, pos, rot, transform.parent);
+        }
+
+        // Track active segments
+        activeSegmentCount++;
+
+        // Configure node component
+        var node = branch.GetComponent<IvyNode>();
+        if (node == null) {
+            node = branch.AddComponent<IvyNode>();
+            node.CopySettings(this);
+        }
         node.depth = depth + 1;
 
         // Initialize branch health
         var seg = branch.GetComponent<IvySegment>();
         if (seg != null) {
             seg.InitHealth(healthCurve.Evaluate(node.depth));
+            seg.onDestroy = OnSegmentDestroyed;
+            
+            // Add to spatial partition
+            if (SpatialPartitionManager.Instance != null) {
+                SpatialPartitionManager.Instance.Insert(seg);
+            }
         }
 
         // Spawn leaves conditionally
@@ -73,7 +102,17 @@ public class IvyNode : MonoBehaviour {
                 float angleOff = Random.Range(-30f, 30f);
                 Vector3 leafDir = Quaternion.Euler(0, 0, angleOff) * direction;
                 Vector3 leafPos = pos + leafDir * (segmentLength * 0.5f);
-                Instantiate(leafPrefab, leafPos, Quaternion.LookRotation(Vector3.forward, leafDir), branch.transform);
+                Quaternion leafRot = Quaternion.LookRotation(Vector3.forward, leafDir);
+                
+                // Get leaf from pool if available
+                if (PoolManager.Instance != null) {
+                    GameObject leaf = PoolManager.Instance.GetLeaf();
+                    leaf.transform.position = leafPos;
+                    leaf.transform.rotation = leafRot;
+                    leaf.transform.parent = branch.transform;
+                } else {
+                    Instantiate(leafPrefab, leafPos, leafRot, branch.transform);
+                }
             }
         }
 
@@ -89,6 +128,27 @@ public class IvyNode : MonoBehaviour {
         }
     }
 
+    void OnSegmentDestroyed(GameObject obj) {
+        activeSegmentCount--;
+        
+        // Remove from spatial partition
+        var seg = obj.GetComponent<IvySegment>();
+        if (seg != null && SpatialPartitionManager.Instance != null) {
+            SpatialPartitionManager.Instance.Remove(seg);
+        }
+        
+        // Return to pool if available
+        if (PoolManager.Instance != null) {
+            // Process child leaves first
+            foreach (Transform child in obj.transform) {
+                if (child.gameObject.GetComponent<IvySway>() != null) {
+                    PoolManager.Instance.ReleaseLeaf(child.gameObject);
+                }
+            }
+            PoolManager.Instance.ReleaseBranch(obj);
+        }
+    }
+
     void CopySettings(IvyNode other) {
         branchPrefab       = other.branchPrefab;
         leafPrefab         = other.leafPrefab;
@@ -101,6 +161,7 @@ public class IvyNode : MonoBehaviour {
         maxLeavesPerBranch = other.maxLeavesPerBranch;
         maxDepth           = other.maxDepth;
         healthCurve        = other.healthCurve;
+        maxActiveSegments  = other.maxActiveSegments;
     }
 
     void OnDestroy() {

@@ -40,7 +40,7 @@ A procedural ivy growth and cutting game with rogue-lite progression.
    - `spawnRadius` - Distance from center to spawn points
    - `rootCount` - Number of ivy roots to spawn
 
-### 5. Growth Controller Setup
+### 5. Growth Controller Setupx
 1. Create an empty GameObject named "GrowthController"
 2. Add the `GrowthController` script
 3. Configure the `speedMultiplier` parameter (1.0 is normal speed, >1 is faster, <1 is slower)

@@ -46,13 +46,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   branchPrefab: {fileID: 4681634106179904249, guid: 2ac33d2088120e943bfd28c72de13adf, type: 3}
   leafPrefab: {fileID: 3935325812229915542, guid: 719cb8a233ada764ab4d213f1589d7ac, type: 3}
-  growthInterval: 1
+  growthInterval: 0.1
   segmentLength: 1
   branchChance: 0.1
-  branchDecay: 0.1
-  maxBranchSpawns: 1
+  branchDecay: 0
+  maxBranchSpawns: 4
   leafSpawnChance: 0.1
-  maxLeavesPerBranch: 1
+  maxLeavesPerBranch: 2
   maxDepth: 5
   healthCurve:
     serializedVersion: 2
@@ -78,4 +78,5 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  maxActiveSegments: 200
   depth: 0
