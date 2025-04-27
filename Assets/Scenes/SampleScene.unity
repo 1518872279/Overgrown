@@ -858,6 +858,13 @@ MonoBehaviour:
   ivyRootPrefab: {fileID: 4022400748429837350, guid: 4306118ae1645774aa8920e0ef0d3915, type: 3}
   spawnRadius: 10
   rootCount: 8
+  minGrowthRate: 0.1
+  maxGrowthRate: 0.99
+  showGrowthRateDebug: 1
+  minFpsThreshold: 90
+  resumeFpsThreshold: 90
+  performanceCheckInterval: 2
+  autoAdjustForPerformance: 1
 --- !u!4 &751457431
 Transform:
   m_ObjectHideFlags: 0
@@ -1553,6 +1560,9 @@ MonoBehaviour:
   leafPrefab: {fileID: 0}
   growthInterval: 0.3
   segmentLength: 0.5
+  minGrowthRate: 0.6
+  maxGrowthRate: 1.4
+  growthRateMultiplier: 1
   branchChance: 0.25
   branchDecay: 0.8
   maxBranchSpawns: 1
@@ -1565,6 +1575,9 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  maxTotalBranches: 300
+  growthPauseDistance: 20
+  useObjectPooling: 1
   depth: 0
 --- !u!4 &1864661808
 Transform:
