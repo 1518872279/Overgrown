@@ -1,11 +1,15 @@
 using UnityEngine;
 
 public class IvyNode : MonoBehaviour {
+    [Tooltip("Segment prefab with IvySegment & IvySway")]
     public GameObject segmentPrefab;
     public float growthInterval = 0.3f;
     public float segmentLength = 0.5f;
     public float branchChance = 0.25f;
     public int maxDepth = 5;
+
+    [Tooltip("Curve defining health per generation (match your XP curve)")]
+    public AnimationCurve healthCurve;
 
     [HideInInspector] public int depth = 0;
 
@@ -17,33 +21,32 @@ public class IvyNode : MonoBehaviour {
         if (depth >= maxDepth) return;
 
         // Spawn forward segment
-        Vector3 forward = transform.up * segmentLength;
-        var seg = Instantiate(segmentPrefab, transform.position + forward, transform.rotation, transform.parent);
-        var node = seg.AddComponent<IvyNode>();
-        node.depth = depth + 1;
-        node.CopySettings(this);
-
+        SpawnSegment(transform.up);
         // Random branching
         if (Random.value < branchChance) {
-            SpawnBranch( Random.Range(20f, 45f) );
-            SpawnBranch( -Random.Range(20f, 45f) );
+            SpawnSegment(Quaternion.Euler(0, 0, Random.Range(20f,45f)) * transform.up);
+            SpawnSegment(Quaternion.Euler(0, 0, -Random.Range(20f,45f)) * transform.up);
         }
     }
 
-    void SpawnBranch(float angle) {
-        Quaternion rot = transform.rotation * Quaternion.Euler(0, 0, angle);
-        Vector3 dir = rot * Vector3.up * segmentLength;
-        var seg = Instantiate(segmentPrefab, transform.position + dir, rot, transform.parent);
-        var node = seg.AddComponent<IvyNode>();
-        node.depth = depth + 1;
-        node.CopySettings(this);
-    }
+    void SpawnSegment(Vector3 direction) {
+        Vector3 pos = transform.position + direction * segmentLength;
+        Quaternion rot = Quaternion.LookRotation(Vector3.forward, direction);
+        GameObject segObj = Instantiate(segmentPrefab, pos, rot, transform.parent);
 
-    public void CopySettings(IvyNode other) {
-        segmentPrefab   = other.segmentPrefab;
-        growthInterval  = other.growthInterval;
-        segmentLength   = other.segmentLength;
-        branchChance    = other.branchChance;
-        maxDepth        = other.maxDepth;
+        // Set generation and settings
+        IvyNode child = segObj.AddComponent<IvyNode>();
+        child.depth = depth + 1;
+        child.segmentPrefab = segmentPrefab;
+        child.growthInterval = growthInterval;
+        child.segmentLength = segmentLength;
+        child.branchChance = branchChance;
+        child.maxDepth = maxDepth;
+        child.healthCurve = healthCurve;
+
+        // Scale health based on curve
+        IvySegment seg = segObj.GetComponent<IvySegment>();
+        float health = healthCurve.Evaluate(child.depth);
+        seg.InitHealth(health);
     }
 } 
