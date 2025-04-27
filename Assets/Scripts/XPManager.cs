@@ -5,6 +5,7 @@ public class XPManager : MonoBehaviour {
     public float xp = 0f;
     public int level = 1;
     public int upgradePoints = 0;
+    [Tooltip("Curve: level → XP needed for next level")]
     public AnimationCurve xpCurve; // define xpToNextLevel: time vs xp needed
 
     void Awake() {

@@ -4,18 +4,49 @@ This markdown outlines the scripts and setup you’ll need. Paste each code bloc
 
 ---
 
-## 1. IvyNode.cs
-**Purpose:** Procedural, transform-based ivy growth with branching.
+## 1. GrowthManager.cs
+**Purpose:** Spawns multiple ivy roots randomly around the room perimeter, all growing inward toward the center.
+
+```csharp
+using UnityEngine;
+
+public class GrowthManager : MonoBehaviour {
+    [Tooltip("Prefab with IvyNode attached")]
+    public GameObject ivyRootPrefab;
+    public float spawnRadius = 10f;
+    public int rootCount = 8;
+
+    void Start() {
+        Vector3 center = transform.position;
+        for (int i = 0; i < rootCount; i++) {
+            float angle = i * (360f / rootCount) + Random.Range(0f, 360f / rootCount);
+            Vector3 pos = center + Quaternion.Euler(0, 0, angle) * Vector3.up * spawnRadius;
+            GameObject root = Instantiate(ivyRootPrefab, pos, Quaternion.identity);
+            // Orient to grow toward center
+            root.transform.up = (center - pos).normalized;
+        }
+    }
+}
+```
+
+---
+
+## 2. IvyNode.cs
+**Purpose:** Procedural, transform-based ivy growth with branching and health scaling based on player XP curve.
 
 ```csharp
 using UnityEngine;
 
 public class IvyNode : MonoBehaviour {
+    [Tooltip("Segment prefab with IvySegment & IvySway")]
     public GameObject segmentPrefab;
     public float growthInterval = 0.3f;
     public float segmentLength = 0.5f;
     public float branchChance = 0.25f;
     public int maxDepth = 5;
+
+    [Tooltip("Curve defining health per generation (match your XP curve)")]
+    public AnimationCurve healthCurve;
 
     [HideInInspector] public int depth = 0;
 
@@ -25,55 +56,35 @@ public class IvyNode : MonoBehaviour {
 
     void Grow() {
         if (depth >= maxDepth) return;
-        // Forward segment
-        Vector3 forward = transform.up * segmentLength;
-        var seg = Instantiate(segmentPrefab, transform.position + forward, transform.rotation, transform.parent);
-        var node = seg.AddComponent<IvyNode>(); node.depth = depth + 1; node.CopySettings(this);
-        // Random branches
+
+        // Spawn forward segment
+        SpawnSegment(transform.up);
+        // Random branching
         if (Random.value < branchChance) {
-            SpawnBranch(Random.Range(20f, 45f));
-            SpawnBranch(-Random.Range(20f, 45f));
+            SpawnSegment(Quaternion.Euler(0, 0, Random.Range(20f,45f)) * transform.up);
+            SpawnSegment(Quaternion.Euler(0, 0, -Random.Range(20f,45f)) * transform.up);
         }
     }
 
-    void SpawnBranch(float angle) {
-        Quaternion rot = transform.rotation * Quaternion.Euler(0, 0, angle);
-        Vector3 dir = rot * Vector3.up * segmentLength;
-        var seg = Instantiate(segmentPrefab, transform.position + dir, rot, transform.parent);
-        var node = seg.AddComponent<IvyNode>(); node.depth = depth + 1; node.CopySettings(this);
-    }
+    void SpawnSegment(Vector3 direction) {
+        Vector3 pos = transform.position + direction * segmentLength;
+        Quaternion rot = Quaternion.LookRotation(Vector3.forward, direction);
+        GameObject segObj = Instantiate(segmentPrefab, pos, rot, transform.parent);
 
-    public void CopySettings(IvyNode other) {
-        segmentPrefab   = other.segmentPrefab;
-        growthInterval  = other.growthInterval;
-        segmentLength   = other.segmentLength;
-        branchChance    = other.branchChance;
-        maxDepth        = other.maxDepth;
-    }
-}
-```
+        // Set generation and settings
+        IvyNode child = segObj.AddComponent<IvyNode>();
+        child.depth = depth + 1;
+        child.segmentPrefab = segmentPrefab;
+        child.growthInterval = growthInterval;
+        child.segmentLength = segmentLength;
+        child.branchChance = branchChance;
+        child.maxDepth = maxDepth;
+        child.healthCurve = healthCurve;
 
----
-
-## 2. IvySway.cs
-**Purpose:** Adds a subtle sine-wave rotation to each segment for organic movement.
-
-```csharp
-using UnityEngine;
-
-public class IvySway : MonoBehaviour {
-    public float swaySpeed = 2f;
-    public float swayAngle = 10f;
-    private float baseAngle;
-
-    void Start() {
-        baseAngle = transform.eulerAngles.z;
-    }
-
-    void Update() {
-        float phase = transform.GetSiblingIndex() * 0.5f;
-        float offset = Mathf.Sin(Time.time * swaySpeed + phase) * swayAngle;
-        transform.rotation = Quaternion.Euler(0, 0, baseAngle + offset);
+        // Scale health based on curve
+        IvySegment seg = segObj.GetComponent<IvySegment>();
+        float health = healthCurve.Evaluate(child.depth);
+        seg.InitHealth(health);
     }
 }
 ```
@@ -81,17 +92,29 @@ public class IvySway : MonoBehaviour {
 ---
 
 ## 3. IvySegment.cs
-**Purpose:** Adds health to ivy segments and handles damage from the player.
+**Purpose:** Adds scalable health and XP drop on death.
 
 ```csharp
 using UnityEngine;
 
 public class IvySegment : MonoBehaviour {
-    public float maxHealth = 100f;
+    [Tooltip("Base XP granted when destroyed")]
     public float xpOnDestroy = 10f;
+
+    private float maxHealth;
     private float currentHealth;
 
     void Awake() {
+        // if InitHealth wasn't called, fallback
+        if (maxHealth <= 0f) maxHealth = 50f;
+        currentHealth = maxHealth;
+    }
+
+    /// <summary>
+    /// Initialize health when spawning
+    /// </summary>
+    public void InitHealth(float health) {
+        maxHealth = health;
         currentHealth = maxHealth;
     }
 
@@ -108,7 +131,7 @@ public class IvySegment : MonoBehaviour {
 ---
 
 ## 4. PlayerStats.cs
-**Purpose:** Tracks player level-based stats: finesse (damage rate) and collider radius.
+**Purpose:** Tracks player level-based stats: finesse (damage rate) and cutter collider radius.
 
 ```csharp
 using UnityEngine;
@@ -116,6 +139,7 @@ using UnityEngine;
 [RequireComponent(typeof(CircleCollider2D))]
 public class PlayerStats : MonoBehaviour {
     public static PlayerStats Instance;
+
     public float baseFinesse = 10f;
     public float finessePerLevel = 2f;
     public float baseRadius = 0.5f;
@@ -141,7 +165,7 @@ public class PlayerStats : MonoBehaviour {
 ---
 
 ## 5. IvyCutterCollision.cs
-**Purpose:** Applies continuous damage to ivy segments when in contact, based on player finesse.
+**Purpose:** Applies continuous damage to ivy segments on contact, based on player finesse.
 
 ```csharp
 using UnityEngine;
@@ -150,7 +174,7 @@ using UnityEngine;
 public class IvyCutterCollision : MonoBehaviour {
     void OnTriggerStay2D(Collider2D other) {
         if (other.CompareTag("IvySegment")) {
-            var seg = other.GetComponent<IvySegment>();
+            IvySegment seg = other.GetComponent<IvySegment>();
             seg.TakeDamage(PlayerStats.Instance.Finesse * Time.deltaTime);
         }
     }
@@ -170,6 +194,7 @@ public class XPManager : MonoBehaviour {
     public float xp = 0f;
     public int level = 1;
     public int upgradePoints = 0;
+    [Tooltip("Curve: level → XP needed for next level")]
     public AnimationCurve xpCurve;
 
     void Awake() {
@@ -305,25 +330,24 @@ public class CameraShake : MonoBehaviour {
 
 ## 11. Setup Recap & Tips
 
-1. **Segment Prefab**
-   - Sprite + `BoxCollider2D` (Is Trigger) + Tag = **IvySegment**.
+1. **GrowthManager**:
+   - Attach to an empty GameObject at center, assign `ivyRootPrefab`.
+2. **Segment Prefab**:
+   - Sprite + `BoxCollider2D` (Is Trigger), Tag = **IvySegment**.
    - Attach `IvyNode`, `IvySway`, and `IvySegment`.
-
-2. **Root Spawner**
-   - Empty GameObject + `IvyNode`, assign segment prefab.
-
-3. **Player**
+3. **Root Prefab**:
+   - Prefab containing only an empty GameObject with `IvyNode` + `IvySway` + `IvySegment`.
+4. **Player**:
    - Add `Rigidbody2D` + `CircleCollider2D` (Is Trigger).
    - Attach `PlayerMovement`, `PlayerStats`, and `IvyCutterCollision`.
-
-4. **Managers**
-   - Empty GameObjects: `XPManager` (configure `xpCurve`).
-
-5. **Camera**
+5. **Managers**:
+   - `XPManager`: empty GameObject, set `xpCurve` for level progression.
+6. **Camera**:
    - Main Camera: attach `CameraFollow` (set target & offset) and `CameraShake`.
+7. **Curve Setup**:
+   - Use the same `AnimationCurve` asset for `healthCurve` in `IvyNode` and `xpCurve` in `XPManager` so node health scales with XP progression.
+8. **Performance**:
+   - Pool ivy segments, limit `maxDepth`, reuse particle systems.
 
-6. **Performance**
-   - Pool ivy segments, limit `maxDepth`, and reuse particle systems.
-
-Use this markdown in Cursor to generate all scripts and set up your top-down rogue-lite ivy cutter game with collision-based cutting and level-based finesse and radius. Good luck in your jam!
+Use this markdown in Cursor to generate all scripts and set up your top-down rogue-lite ivy cutter game with random peripheral growth and health-scaling nodes matching your XP curve. Good luck in your jam!
 

@@ -1,11 +1,23 @@
 using UnityEngine;
 
 public class IvySegment : MonoBehaviour {
-    public float maxHealth = 100f;
+    [Tooltip("Base XP granted when destroyed")]
     public float xpOnDestroy = 10f;
+
+    private float maxHealth;
     private float currentHealth;
 
     void Awake() {
+        // if InitHealth wasn't called, fallback
+        if (maxHealth <= 0f) maxHealth = 50f;
+        currentHealth = maxHealth;
+    }
+
+    /// <summary>
+    /// Initialize health when spawning
+    /// </summary>
+    public void InitHealth(float health) {
+        maxHealth = health;
         currentHealth = maxHealth;
     }
 
