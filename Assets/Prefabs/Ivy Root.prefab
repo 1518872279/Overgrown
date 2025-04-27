@@ -48,9 +48,9 @@ MonoBehaviour:
   leafPrefab: {fileID: 3935325812229915542, guid: 719cb8a233ada764ab4d213f1589d7ac, type: 3}
   growthInterval: 1
   segmentLength: 1
-  branchChance: 0.1
-  branchDecay: 0.1
-  maxBranchSpawns: 1
+  branchChance: 0.05
+  branchDecay: 0.5
+  maxBranchSpawns: 2
   leafSpawnChance: 0.1
   maxLeavesPerBranch: 1
   maxDepth: 10

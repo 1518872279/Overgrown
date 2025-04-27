@@ -42,3 +42,15 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
+  - name: House
+    uniqueID: 2459686939
+    locked: 0
+  - name: Window
+    uniqueID: 3932632281
+    locked: 0
+  - name: Root
+    uniqueID: 3717515227
+    locked: 0
+  - name: Player
+    uniqueID: 4236407573
+    locked: 0
