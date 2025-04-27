@@ -92,10 +92,12 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3935325812229915542}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 041f236d8391f794bbbeac6006c7eae0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   swaySpeed: 2
   swayAngle: 15
+  updateInterval: 2
+  disableOffscreen: 1

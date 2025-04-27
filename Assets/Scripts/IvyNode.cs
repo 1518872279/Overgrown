@@ -164,6 +164,12 @@ public class IvyNode : MonoBehaviour {
             branch = Instantiate(branchPrefab, pos, rot, transform.parent);
         }
         
+        // Make sure colliders are set as triggers for proper collision detection
+        Collider2D[] colliders = branch.GetComponents<Collider2D>();
+        foreach (Collider2D collider in colliders) {
+            collider.isTrigger = true;
+        }
+        
         var node = branch.GetComponent<IvyNode>();
         if (node == null) {
             node = branch.AddComponent<IvyNode>();

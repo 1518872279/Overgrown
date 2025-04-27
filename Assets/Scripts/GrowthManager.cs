@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class GrowthManager : MonoBehaviour {
     [Header("Ivy Generation")]
@@ -6,6 +7,12 @@ public class GrowthManager : MonoBehaviour {
     public GameObject ivyRootPrefab;
     public float spawnRadius = 10f;
     public int rootCount = 8;
+    [Tooltip("Minimum distance between spawn positions")]
+    public float minSpawnDistance = 1.5f;
+    [Tooltip("Maximum spawn attempts per position")]
+    public int maxSpawnAttempts = 10;
+    [Tooltip("Random jitter applied to spawn positions (0 = precise circle)")]
+    [Range(0f, 1f)] public float positionJitter = 0.2f;
     
     [Header("Growth Rate")]
     [Tooltip("Minimum random growth rate (0.5 = half speed, 2.0 = double speed)")]
@@ -28,35 +35,114 @@ public class GrowthManager : MonoBehaviour {
     private float lastPerformanceCheck;
     private float currentFps;
     private bool growthPaused = false;
+    private List<Vector3> spawnPositions = new List<Vector3>();
 
     void Start() {
+        SpawnIvyRoots();
+        lastPerformanceCheck = Time.time;
+    }
+    
+    void SpawnIvyRoots() {
         Vector3 center = transform.position;
-        for (int i = 0; i < rootCount; i++) {
-            float angle = i * (360f / rootCount) + Random.Range(0f, 360f / rootCount);
-            Vector3 pos = center + Quaternion.Euler(0, 0, angle) * Vector3.up * spawnRadius;
-            GameObject root = Instantiate(ivyRootPrefab, pos, Quaternion.identity);
+        spawnPositions.Clear();
+        
+        // Try to spawn the requested number of roots
+        int successfulSpawns = 0;
+        int totalAttempts = 0;
+        
+        // Pre-calculate potential positions
+        List<Vector3> candidatePositions = new List<Vector3>();
+        int angleDivisions = rootCount * 3; // Generate more candidate positions than needed
+        
+        for (int i = 0; i < angleDivisions; i++) {
+            float angle = i * (360f / angleDivisions);
+            float radiusOffset = Random.Range(-spawnRadius * positionJitter, spawnRadius * positionJitter);
+            float actualRadius = spawnRadius + radiusOffset;
+            Vector3 direction = Quaternion.Euler(0, 0, angle) * Vector3.up;
+            Vector3 position = center + direction * actualRadius;
+            candidatePositions.Add(position);
+        }
+        
+        // Shuffle the candidate positions for more randomness
+        ShuffleList(candidatePositions);
+        
+        // Try positions until we get enough successful spawns
+        while (successfulSpawns < rootCount && totalAttempts < maxSpawnAttempts * rootCount) {
+            totalAttempts++;
             
-            // Orient to grow toward center
-            root.transform.up = (center - pos).normalized;
+            // Get the next candidate position, or generate new ones if we ran out
+            Vector3 pos;
+            if (candidatePositions.Count > 0) {
+                pos = candidatePositions[0];
+                candidatePositions.RemoveAt(0);
+            } else {
+                // Generate a completely random position if we've exhausted our candidates
+                float randomAngle = Random.Range(0f, 360f);
+                float randomRadius = spawnRadius * Random.Range(0.8f, 1.2f);
+                pos = center + Quaternion.Euler(0, 0, randomAngle) * Vector3.up * randomRadius;
+            }
             
-            // Configure random growth rate
-            IvyNode ivyNode = root.GetComponent<IvyNode>();
-            if (ivyNode != null) {
-                ivyNode.minGrowthRate = minGrowthRate;
-                ivyNode.maxGrowthRate = maxGrowthRate;
-                
-                // Explicitly set random growth rate (will be used instead of automatic assignment)
-                float randomRate = Random.Range(minGrowthRate, maxGrowthRate);
-                ivyNode.growthRateMultiplier = randomRate;
-                
-                // Add debug text object if enabled
-                if (showGrowthRateDebug) {
-                    CreateDebugText(root, randomRate);
+            // Check if this position is too close to existing ones
+            bool tooClose = false;
+            foreach (Vector3 existingPos in spawnPositions) {
+                if (Vector3.Distance(pos, existingPos) < minSpawnDistance) {
+                    tooClose = true;
+                    break;
                 }
+            }
+            
+            // Check for collisions with existing objects
+            Collider2D[] colliders = Physics2D.OverlapCircleAll(pos, minSpawnDistance / 2f);
+            if (colliders.Length > 0) {
+                tooClose = true;
+            }
+            
+            if (!tooClose) {
+                spawnPositions.Add(pos);
+                CreateIvyRoot(pos, center);
+                successfulSpawns++;
             }
         }
         
-        lastPerformanceCheck = Time.time;
+        // If we couldn't spawn all requested roots, log a warning
+        if (successfulSpawns < rootCount) {
+            Debug.LogWarning($"Could only spawn {successfulSpawns}/{rootCount} ivy roots due to space constraints.");
+        }
+    }
+    
+    void CreateIvyRoot(Vector3 position, Vector3 center) {
+        GameObject root = Instantiate(ivyRootPrefab, position, Quaternion.identity);
+        
+        // Orient to grow toward center
+        root.transform.up = (center - position).normalized;
+        
+        // Configure random growth rate
+        IvyNode ivyNode = root.GetComponent<IvyNode>();
+        if (ivyNode != null) {
+            ivyNode.minGrowthRate = minGrowthRate;
+            ivyNode.maxGrowthRate = maxGrowthRate;
+            
+            // Explicitly set random growth rate (will be used instead of automatic assignment)
+            float randomRate = Random.Range(minGrowthRate, maxGrowthRate);
+            ivyNode.growthRateMultiplier = randomRate;
+            
+            // Add debug text object if enabled
+            if (showGrowthRateDebug) {
+                CreateDebugText(root, randomRate);
+            }
+        }
+    }
+    
+    // Helper method to shuffle a list
+    void ShuffleList<T>(List<T> list) {
+        int n = list.Count;
+        while (n > 1) {
+            n--;
+            int k = Random.Range(0, n + 1);
+            T value = list[k];
+            list[k] = list[n];
+            list[n] = value;
+        }
     }
     
     void Update() {
@@ -114,6 +200,21 @@ public class GrowthManager : MonoBehaviour {
             IvyNode.PauseAllGrowth();
         } else {
             IvyNode.ResumeAllGrowth();
+        }
+    }
+    
+    // Visual debugging
+    void OnDrawGizmosSelected() {
+        // Draw spawn radius
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(transform.position, spawnRadius);
+        
+        // Draw minimum spacing radius if in runtime
+        if (Application.isPlaying && spawnPositions.Count > 0) {
+            Gizmos.color = Color.yellow;
+            foreach (Vector3 pos in spawnPositions) {
+                Gizmos.DrawWireSphere(pos, minSpawnDistance / 2f);
+            }
         }
     }
 } 
