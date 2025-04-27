@@ -53,7 +53,7 @@ MonoBehaviour:
   maxBranchSpawns: 4
   leafSpawnChance: 0.1
   maxLeavesPerBranch: 2
-  maxDepth: 5
+  maxDepth: 10
   healthCurve:
     serializedVersion: 2
     m_Curve:
