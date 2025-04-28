@@ -175,9 +175,12 @@ public class CenterAreaProtection : MonoBehaviour {
             }
         }
         
-        // Find objects that left the area
+        // Fix: Create a copy of tracked objects to avoid modifying the collection during enumeration
+        List<GameObject> objectsToCheck = new List<GameObject>(trackedObjects);
         List<GameObject> objectsToRemove = new List<GameObject>();
-        foreach (GameObject obj in trackedObjects) {
+        
+        // Find objects that left the area
+        foreach (GameObject obj in objectsToCheck) {
             if (!currentlyInside.Contains(obj)) {
                 HandleCollisionExit(obj);
                 objectsToRemove.Add(obj);
