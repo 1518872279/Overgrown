@@ -1223,12 +1223,9 @@ MonoBehaviour:
   - {fileID: 1667957010}
   - {fileID: 800230561}
   - {fileID: 1967009694}
-  - {fileID: 0}
-  - {fileID: 0}
   - {fileID: 1103032080}
   - {fileID: 377179611}
   - {fileID: 290026466}
-  - {fileID: 0}
   orientTowardCenter: 1
   keepPlaceholders: 0
   minGrowthRate: 0.35
