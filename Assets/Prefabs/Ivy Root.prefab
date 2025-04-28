@@ -55,7 +55,7 @@ MonoBehaviour:
   branchDecay: 0.5
   maxBranchSpawns: 2
   leafSpawnChance: 0.1
-  maxLeavesPerBranch: 1
+  maxLeavesPerBranch: 2
   maxDepth: 10
   healthCurve:
     serializedVersion: 2
@@ -84,4 +84,7 @@ MonoBehaviour:
   maxTotalBranches: 300
   growthPauseDistance: 20
   useObjectPooling: 1
+  minBranchDistance: 0.3
+  maxPositionAttempts: 5
+  preventOverlapping: 1
   depth: 0
