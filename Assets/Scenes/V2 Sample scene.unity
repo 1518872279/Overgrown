@@ -161,6 +161,12 @@ MonoBehaviour:
   acceleration: 20
   deceleration: 25
   moveParticles: {fileID: 0}
+  rotateSprite: 1
+  useFlipInstead: 0
+  spriteToFlip: {fileID: 0}
+  rotationOffset: -90
+  invertRotation: 0
+  rotationSpeed: 10
 --- !u!50 &68121710
 Rigidbody2D:
   serializedVersion: 4
@@ -248,13 +254,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 68121707}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.15, y: 0.15, z: 0.15}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 90}
 --- !u!58 &68121713
 CircleCollider2D:
   m_ObjectHideFlags: 0
