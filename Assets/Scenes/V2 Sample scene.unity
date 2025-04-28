@@ -858,14 +858,14 @@ MonoBehaviour:
   ivyRootPrefab: {fileID: 4022400748429837350, guid: 4306118ae1645774aa8920e0ef0d3915, type: 3}
   spawnRadius: 10
   rootCount: 8
-  minSpawnDistance: 1.5
-  maxSpawnAttempts: 10
-  positionJitter: 0.2
-  minGrowthRate: 0.6
-  maxGrowthRate: 1.4
-  showGrowthRateDebug: 0
-  minFpsThreshold: 30
-  resumeFpsThreshold: 40
+  minSpawnDistance: 3
+  maxSpawnAttempts: 5
+  positionJitter: 0.361
+  minGrowthRate: 0.35
+  maxGrowthRate: 1.11
+  showGrowthRateDebug: 1
+  minFpsThreshold: 90
+  resumeFpsThreshold: 90
   performanceCheckInterval: 2
   autoAdjustForPerformance: 1
 --- !u!4 &751457431
@@ -1257,10 +1257,10 @@ MonoBehaviour:
   showProtectionArea: 0
   areaColor: {r: 1, g: 0, b: 0, a: 0.2}
   borderColor: {r: 1, g: 0, b: 0, a: 0.8}
-  debugMode: 1
   useManualDetection: 1
   manualCheckInterval: 0.5
   manualCheckRadius: 0
+  debugMode: 1
 --- !u!212 &1457010850
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1357,7 +1357,7 @@ BoxCollider2D:
   m_CallbackLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
   m_Offset: {x: 0.00000047683716, y: 0.032541037}
