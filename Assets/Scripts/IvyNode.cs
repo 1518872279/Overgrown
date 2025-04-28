@@ -40,6 +40,14 @@ public class IvyNode : MonoBehaviour {
     public float growthPauseDistance = 20f;
     [Tooltip("Use object pooling for branches and leaves")]
     public bool useObjectPooling = true;
+    
+    [Header("Position Checking")]
+    [Tooltip("Minimum distance between branches")]
+    public float minBranchDistance = 0.3f;
+    [Tooltip("Maximum attempts to find a valid position")]
+    public int maxPositionAttempts = 5;
+    [Tooltip("Prevent overlapping with other branches")]
+    public bool preventOverlapping = true;
 
     [HideInInspector] public int depth = 0;
     private Coroutine growthCoroutine;
@@ -48,6 +56,9 @@ public class IvyNode : MonoBehaviour {
     // Static tracking of total instances to limit growth
     private static int totalBranchCount = 0;
     private static List<IvyNode> allNodes = new List<IvyNode>();
+    
+    // Track all branch positions to prevent overlaps
+    private static HashSet<Vector2> occupiedPositions = new HashSet<Vector2>();
     
     // Object pooling
     private static Dictionary<int, Queue<GameObject>> branchPool = new Dictionary<int, Queue<GameObject>>();
@@ -60,7 +71,13 @@ public class IvyNode : MonoBehaviour {
         // Set random growth rate for root nodes
         if (depth == 0) {
             growthRateMultiplier = Random.Range(minGrowthRate, maxGrowthRate);
+            
+            // Clear occupied positions when a new root is created
+            occupiedPositions.Clear();
         }
+        
+        // Register this branch's position
+        RegisterPosition(transform.position);
     }
 
     void Start() {
@@ -86,6 +103,44 @@ public class IvyNode : MonoBehaviour {
         
         allNodes.Remove(this);
         totalBranchCount--;
+        
+        // Remove this position from occupied positions
+        UnregisterPosition(transform.position);
+    }
+    
+    // Register a position as occupied
+    private static void RegisterPosition(Vector3 worldPos) {
+        Vector2 pos2D = new Vector2(Mathf.Round(worldPos.x * 10) / 10, Mathf.Round(worldPos.y * 10) / 10);
+        occupiedPositions.Add(pos2D);
+    }
+    
+    // Unregister a position when branch is destroyed
+    private static void UnregisterPosition(Vector3 worldPos) {
+        Vector2 pos2D = new Vector2(Mathf.Round(worldPos.x * 10) / 10, Mathf.Round(worldPos.y * 10) / 10);
+        occupiedPositions.Remove(pos2D);
+    }
+    
+    // Check if a position is too close to existing branches
+    private bool IsPositionOccupied(Vector3 worldPos) {
+        if (!preventOverlapping) return false;
+        
+        // Round to nearest 0.1 unit to prevent floating point issues
+        Vector2 pos2D = new Vector2(Mathf.Round(worldPos.x * 10) / 10, Mathf.Round(worldPos.y * 10) / 10);
+        
+        // First check the hash set for exact position matches
+        if (occupiedPositions.Contains(pos2D)) {
+            return true;
+        }
+        
+        // Then do a more detailed check for close positions
+        foreach (Vector2 existingPos in occupiedPositions) {
+            float distance = Vector2.Distance(pos2D, existingPos);
+            if (distance < minBranchDistance) {
+                return true;
+            }
+        }
+        
+        return false;
     }
     
     private void InitObjectPools() {
@@ -153,15 +208,55 @@ public class IvyNode : MonoBehaviour {
     void SpawnBranch(Vector3 localDir) {
         // Calculate direction
         Vector3 direction = transform.rotation * localDir;
-        Vector3 pos = transform.position + direction * segmentLength;
-        Quaternion rot = Quaternion.LookRotation(Vector3.forward, direction);
+        
+        // Try to find a valid, non-overlapping position
+        Vector3 pos = transform.position;
+        Vector3 finalPos = Vector3.zero;
+        Quaternion rot = Quaternion.identity;
+        bool positionFound = false;
+        float segmentExtension = segmentLength;
+        
+        for (int attempt = 0; attempt < maxPositionAttempts; attempt++) {
+            // Introduce slight variation to position after first attempt
+            Vector3 directionVariation = direction;
+            if (attempt > 0) {
+                // Add increasing randomness with each attempt
+                float variationAmount = 0.1f * attempt;
+                directionVariation += new Vector3(
+                    Random.Range(-variationAmount, variationAmount),
+                    Random.Range(-variationAmount, variationAmount),
+                    0
+                );
+                directionVariation.Normalize();
+                
+                // Also try slightly different segment lengths
+                segmentExtension = segmentLength * Random.Range(0.9f, 1.1f);
+            }
+            
+            finalPos = pos + directionVariation * segmentExtension;
+            rot = Quaternion.LookRotation(Vector3.forward, directionVariation);
+            
+            // Check if position is valid
+            if (!IsPositionOccupied(finalPos)) {
+                positionFound = true;
+                break;
+            }
+        }
+        
+        // If no valid position found, skip this branch
+        if (!positionFound) {
+            return;
+        }
+        
+        // Register the new position as occupied
+        RegisterPosition(finalPos);
 
         // Instantiate branch (using pool if enabled)
         GameObject branch;
         if (useObjectPooling) {
-            branch = GetFromPool(branchPrefab, pos, rot, transform.parent);
+            branch = GetFromPool(branchPrefab, finalPos, rot, transform.parent);
         } else {
-            branch = Instantiate(branchPrefab, pos, rot, transform.parent);
+            branch = Instantiate(branchPrefab, finalPos, rot, transform.parent);
         }
         
         // Make sure colliders are set as triggers for proper collision detection
@@ -192,7 +287,7 @@ public class IvyNode : MonoBehaviour {
             for (int i = 0; i < leafCount; i++) {
                 float angleOff = Random.Range(-30f, 30f);
                 Vector3 leafDir = Quaternion.Euler(0, 0, angleOff) * direction;
-                Vector3 leafPos = pos + leafDir * (segmentLength * 0.5f);
+                Vector3 leafPos = finalPos + leafDir * (segmentLength * 0.5f);
                 
                 GameObject leaf;
                 if (useObjectPooling) {
@@ -248,6 +343,11 @@ public class IvyNode : MonoBehaviour {
     }
     
     public static void ReturnToPool(GameObject obj, bool isBranch) {
+        // Unregister position before returning to pool
+        if (isBranch) {
+            UnregisterPosition(obj.transform.position);
+        }
+        
         obj.SetActive(false);
         obj.transform.parent = null;
         
@@ -277,6 +377,9 @@ public class IvyNode : MonoBehaviour {
         useObjectPooling   = other.useObjectPooling;
         minGrowthRate      = other.minGrowthRate;
         maxGrowthRate      = other.maxGrowthRate;
+        minBranchDistance  = other.minBranchDistance;
+        maxPositionAttempts = other.maxPositionAttempts;
+        preventOverlapping = other.preventOverlapping;
         
         // When copying to child branches, randomly vary the growth rate slightly
         // but stay within parent's range and keep somewhat consistent
@@ -296,5 +399,10 @@ public class IvyNode : MonoBehaviour {
             return allNodes[0].useObjectPooling;
         }
         return false;
+    }
+    
+    // Clear all occupied positions (can be called when restarting)
+    public static void ClearOccupiedPositions() {
+        occupiedPositions.Clear();
     }
 } 
