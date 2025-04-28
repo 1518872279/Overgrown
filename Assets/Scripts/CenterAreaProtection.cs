@@ -18,15 +18,17 @@ public class CenterAreaProtection : MonoBehaviour {
     public Color areaColor = new Color(1f, 0f, 0f, 0.2f);
     public Color borderColor = new Color(1f, 0f, 0f, 0.8f);
     
-    [Header("Debug")]
-    [Tooltip("Enable debug logging")]
-    public bool debugMode = true;
+    [Header("Detection Settings")]
     [Tooltip("Use manual collision checking as backup")]
     public bool useManualDetection = true;
     [Tooltip("Update interval for manual detection")]
     public float manualCheckInterval = 0.5f;
     [Tooltip("Radius for manual detection (0 = use collider radius)")]
     public float manualCheckRadius = 0f;
+    
+    [Header("Debug")]
+    [Tooltip("Enable debug logging")]
+    public bool debugMode = true;
     
     private int segmentsInside = 0;
     private CircleCollider2D circleCollider;
@@ -35,14 +37,8 @@ public class CenterAreaProtection : MonoBehaviour {
     private Coroutine manualCheckRoutine;
     
     void Awake() {
-        // Get or add necessary components
+        // Get existing collider without modifying it
         circleCollider = GetComponent<CircleCollider2D>();
-        if (circleCollider == null) {
-            circleCollider = gameObject.AddComponent<CircleCollider2D>();
-        }
-        
-        // Always ensure trigger is enabled for this collider
-        circleCollider.isTrigger = true;
         
         // Create visual representation if showProtectionArea is true
         if (showProtectionArea && transform.childCount == 0) {
@@ -58,10 +54,13 @@ public class CenterAreaProtection : MonoBehaviour {
             // Match the size to the collider
             if (circleCollider != null) {
                 circle.transform.localScale = new Vector3(
-                    circleCollider.radius * 2,
-                    circleCollider.radius * 2,
+                    circleCollider.radius * 1,
+                    circleCollider.radius * 1,
                     1
                 );
+            } else {
+                // Default size if no collider
+                circle.transform.localScale = new Vector3(1.5f, 1.5f, 1);
             }
 
             // Set sorting layer to ensure visibility
@@ -69,15 +68,13 @@ public class CenterAreaProtection : MonoBehaviour {
         }
         
         if (debugMode) {
-            Debug.Log("CenterAreaProtection initialized - Radius: " + circleCollider.radius + ", Trigger: " + circleCollider.isTrigger);
+            if (circleCollider != null) {
+                Debug.Log("CenterAreaProtection initialized - Using existing CircleCollider2D with Radius: " + 
+                    circleCollider.radius + ", Trigger: " + circleCollider.isTrigger);
+            } else {
+                Debug.Log("CenterAreaProtection initialized - No CircleCollider2D found, will use manual detection only");
+            }
             Debug.Log("Looking for tags: " + string.Join(", ", tagsToCheck));
-        }
-        
-        // Add a rigidbody to ensure collision detection works
-        if (GetComponent<Rigidbody2D>() == null) {
-            Rigidbody2D rb = gameObject.AddComponent<Rigidbody2D>();
-            rb.isKinematic = true;
-            rb.gravityScale = 0;
         }
     }
     
@@ -134,9 +131,15 @@ public class CenterAreaProtection : MonoBehaviour {
     }
     
     void CheckForObjectsInRadius() {
-        float radius = manualCheckRadius > 0 ? manualCheckRadius : circleCollider.radius;
-        Collider2D[] colliders = Physics2D.OverlapCircleAll(transform.position, radius);
+        float radius = manualCheckRadius;
         
+        // If no manual radius specified, use collider radius or default
+        if (radius <= 0) {
+            radius = (circleCollider != null) ? circleCollider.radius : 1.5f;
+        }
+        
+        // First check using Physics2D for objects with colliders
+        Collider2D[] colliders = Physics2D.OverlapCircleAll(transform.position, radius);
         HashSet<GameObject> currentlyInside = new HashSet<GameObject>();
         
         foreach (Collider2D collider in colliders) {
@@ -146,6 +149,28 @@ public class CenterAreaProtection : MonoBehaviour {
                 // If not already tracked, handle as new entry
                 if (!trackedObjects.Contains(collider.gameObject)) {
                     HandleCollisionEnter(collider.gameObject);
+                }
+            }
+        }
+        
+        // Then check all IvySegment components in the scene as a fallback
+        // This catches objects that might not have colliders
+        if (checkComponentInsteadOfTag) {
+            IvySegment[] allSegments = FindObjectsOfType<IvySegment>();
+            
+            foreach (IvySegment segment in allSegments) {
+                // Only check if not already found above
+                if (!currentlyInside.Contains(segment.gameObject)) {
+                    // Check if in range
+                    float distance = Vector3.Distance(transform.position, segment.transform.position);
+                    if (distance <= radius) {
+                        currentlyInside.Add(segment.gameObject);
+                        
+                        // If not already tracked, handle as new entry
+                        if (!trackedObjects.Contains(segment.gameObject)) {
+                            HandleCollisionEnter(segment.gameObject);
+                        }
+                    }
                 }
             }
         }
@@ -295,7 +320,8 @@ public class CenterAreaProtection : MonoBehaviour {
             Gizmos.DrawWireSphere(transform.position, circleCollider.radius);
         } else {
             // Default radius if collider not yet assigned
-            Gizmos.DrawWireSphere(transform.position, 1.5f);
+            float radius = manualCheckRadius > 0 ? manualCheckRadius : 1.5f;
+            Gizmos.DrawWireSphere(transform.position, radius);
         }
     }
 } 
