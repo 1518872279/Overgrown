@@ -5,7 +5,14 @@ public class GrowthManager : MonoBehaviour {
     [Header("Ivy Generation")]
     [Tooltip("Prefab with IvyNode attached")]
     public GameObject ivyRootPrefab;
+    
+    [Tooltip("How to place ivy roots")]
+    public PlacementMode placementMode = PlacementMode.Automatic;
+    
+    [Header("Automatic Placement")]
+    [Tooltip("Distance from center to spawn ivy")]
     public float spawnRadius = 10f;
+    [Tooltip("Number of roots to spawn automatically")]
     public int rootCount = 8;
     [Tooltip("Minimum distance between spawn positions")]
     public float minSpawnDistance = 1.5f;
@@ -13,6 +20,14 @@ public class GrowthManager : MonoBehaviour {
     public int maxSpawnAttempts = 10;
     [Tooltip("Random jitter applied to spawn positions (0 = precise circle)")]
     [Range(0f, 1f)] public float positionJitter = 0.2f;
+    
+    [Header("Manual Placement")]
+    [Tooltip("Manually specified root positions")]
+    public List<Transform> rootPlaceholders = new List<Transform>();
+    [Tooltip("Should roots be oriented toward the center")]
+    public bool orientTowardCenter = true;
+    [Tooltip("Should placeholder objects be kept in scene")]
+    public bool keepPlaceholders = false;
     
     [Header("Growth Rate")]
     [Tooltip("Minimum random growth rate (0.5 = half speed, 2.0 = double speed)")]
@@ -36,13 +51,58 @@ public class GrowthManager : MonoBehaviour {
     private float currentFps;
     private bool growthPaused = false;
     private List<Vector3> spawnPositions = new List<Vector3>();
+    
+    // Enum for placement mode
+    public enum PlacementMode {
+        Automatic,
+        Manual
+    }
 
     void Start() {
-        SpawnIvyRoots();
+        if (placementMode == PlacementMode.Automatic) {
+            SpawnIvyRootsAutomatically();
+        } else {
+            SpawnIvyRootsManually();
+        }
         lastPerformanceCheck = Time.time;
     }
     
-    void SpawnIvyRoots() {
+    void SpawnIvyRootsManually() {
+        Vector3 center = transform.position;
+        
+        if (rootPlaceholders.Count == 0) {
+            Debug.LogWarning("Manual placement mode selected but no root placeholders provided. No ivy will be spawned.");
+            return;
+        }
+        
+        foreach (Transform placeholder in rootPlaceholders) {
+            if (placeholder == null) continue;
+            
+            Vector3 position = placeholder.position;
+            
+            // Create ivy root at the placeholder position
+            GameObject root = Instantiate(ivyRootPrefab, position, Quaternion.identity);
+            
+            // Orient growth direction
+            if (orientTowardCenter) {
+                // Point toward center
+                root.transform.up = (center - position).normalized;
+            } else {
+                // Use placeholder's rotation
+                root.transform.rotation = placeholder.rotation;
+            }
+            
+            // Configure random growth rate
+            ConfigureIvyRoot(root);
+            
+            // Optionally destroy the placeholder
+            if (!keepPlaceholders) {
+                Destroy(placeholder.gameObject);
+            }
+        }
+    }
+    
+    void SpawnIvyRootsAutomatically() {
         Vector3 center = transform.position;
         spawnPositions.Clear();
         
@@ -116,7 +176,11 @@ public class GrowthManager : MonoBehaviour {
         // Orient to grow toward center
         root.transform.up = (center - position).normalized;
         
-        // Configure random growth rate
+        // Configure growth rate
+        ConfigureIvyRoot(root);
+    }
+    
+    void ConfigureIvyRoot(GameObject root) {
         IvyNode ivyNode = root.GetComponent<IvyNode>();
         if (ivyNode != null) {
             ivyNode.minGrowthRate = minGrowthRate;
@@ -205,16 +269,48 @@ public class GrowthManager : MonoBehaviour {
     
     // Visual debugging
     void OnDrawGizmosSelected() {
-        // Draw spawn radius
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(transform.position, spawnRadius);
-        
-        // Draw minimum spacing radius if in runtime
-        if (Application.isPlaying && spawnPositions.Count > 0) {
-            Gizmos.color = Color.yellow;
-            foreach (Vector3 pos in spawnPositions) {
-                Gizmos.DrawWireSphere(pos, minSpawnDistance / 2f);
+        // Draw spawn radius for automatic mode
+        if (placementMode == PlacementMode.Automatic) {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(transform.position, spawnRadius);
+            
+            // Draw minimum spacing radius if in runtime
+            if (Application.isPlaying && spawnPositions.Count > 0) {
+                Gizmos.color = Color.yellow;
+                foreach (Vector3 pos in spawnPositions) {
+                    Gizmos.DrawWireSphere(pos, minSpawnDistance / 2f);
+                }
+            }
+        } else {
+            // Draw lines from center to each placeholder for manual mode
+            Gizmos.color = Color.blue;
+            foreach (Transform placeholder in rootPlaceholders) {
+                if (placeholder != null) {
+                    Gizmos.DrawLine(transform.position, placeholder.position);
+                    
+                    // Show growth direction
+                    Vector3 direction;
+                    if (orientTowardCenter) {
+                        direction = (transform.position - placeholder.position).normalized;
+                    } else {
+                        direction = placeholder.up;
+                    }
+                    Gizmos.color = Color.green;
+                    Gizmos.DrawRay(placeholder.position, direction);
+                }
             }
         }
+    }
+    
+    // Editor method to create placeholder objects
+    [ContextMenu("Create Placeholder at Position")]
+    void CreatePlaceholder() {
+        GameObject placeholder = new GameObject("IvyRootPlaceholder");
+        placeholder.transform.position = transform.position + Vector3.right * spawnRadius;
+        placeholder.transform.up = (transform.position - placeholder.transform.position).normalized;
+        
+        #if UNITY_EDITOR
+        UnityEditor.Selection.activeGameObject = placeholder;
+        #endif
     }
 } 
